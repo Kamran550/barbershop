@@ -1,0 +1,41 @@
+# Docker YALNIZ database üçündür. Laravel, PHP, Composer və Vite host kompüterdə işləyir.
+# Dəyişənlər (DB_*) Laravel-in .env faylından avtomatik oxunur.
+services:
+  mysql:
+    image: mysql:latest
+    container_name: barbershop-mysql
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: UTC
+    ports:
+      # Yalnız localhost-a açıqdır, şəbəkədəki başqa cihazlar qoşula bilməz
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Optional: `docker compose --profile tools up -d` ilə işə düşür → http://127.0.0.1:8081
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    container_name: barbershop-phpmyadmin
+    profiles: ["tools"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql
+    ports:
+      - "127.0.0.1:8081:80"
+
+volumes:
+  mysql_data:
